@@ -1,3 +1,8 @@
+this project involves the use of intellij where we created a jar file using java
+
+
+
+
 references
 
 Scala Documentation. (2024). Two Types of Variables. [online] Available at: https://docs.scala-lang.org/overviews/scala-book/two-types-variables.html.
