@@ -1,0 +1,99 @@
+package streaming
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+//imports
+//object creation
+object a3 {
+def main(args: Array[String]): Unit = {
+if (args.length < 2) {
+System.err.println("Usage: a3 <inputDirectory> <outputDirectory>")
+System.exit(1)
+}
+//directories for input and output
+val inputDir = args(0)
+val outputDir = args(1)
+//spark setup
+val conf = new SparkConf().setAppName("A3Task1") //configure spark to A3Task1
+val ssc = new StreamingContext(conf, Seconds(3)) // setting batches to 3 seconds
+val lines = ssc.textFileStream(inputDir) // scans our hadoop folder for new txt files
+//task 1
+val words = lines.flatMap(_.split(" ")) //split based on whitespace
+.filter(w => w.matches("^[A-Za-z]+$") && w.length >= 3) // must consist of letters and length
+>= 3
+.map(_.toLowerCase) // convert to lowercase
+// console print task1 results
+val task1 = words.map((_, 1L)).reduceByKey(_ + _)
+task1.print()
+// process each RDD
+var task1Counter = 0
+words.foreachRDD { rdd =>
+if (!rdd.isEmpty()) { // skip empty batches
+val counts = rdd.map((_, 1L)).reduceByKey(_ + _) // count each word
+if (!counts.isEmpty()) {
+task1Counter += 1 // add 1 for each new batch
+counts.saveAsTextFile(s"$outputDir/task1-${f"$task1Counter%03d"}") // save to HDFS
+}
+}
+}
+//task 2
+// clean each line while keeping line boundaries (exact same preprocessing as task1)
+val cleanedPerLine = lines.map { line =>
+line.split(" ") // split based on whitespace
+.filter(w => w.matches("^[A-Za-z]+$") && w.length >= 3) // must consist of letters and length
+>= 3
+.map(_.toLowerCase) // convert to lowercase
+}
+// console print
+val task2 = cleanedPerLine.flatMap { ws =>
+for (i <- ws.indices; j <- ws.indices) yield (s"${ws(i)} ${ws(j)}", 1L)
+}.reduceByKey(_ + _)
+task2.print()
+//counter this gives a unique file name such as task2-001, task2-002
+var task2Counter = 0
+//process each RDD
+cleanedPerLine.foreachRDD { rdd =>
+if (!rdd.isEmpty()) { //skip empty RDDs
+val pairCounts = rdd.flatMap { ws =>
+//create all word pairs (including self-pairs)
+for (i <- ws.indices; j <- ws.indices) yield (s"${ws(i)} ${ws(j)}", 1L)
+}.reduceByKey(_ + _) //count how many times each pair co-occurs in this batch
+if (!pairCounts.isEmpty()) {
+task2Counter += 1 //increase the output number for each new batch
+val path = s"$outputDir/task2-${f"$task2Counter%03d"}"
+pairCounts
+.map { case (pair, count) => s"$pair\t$count" } //format output as "word1 word2\tcount"
+.saveAsTextFile(path) //save to HDFS output folder
+}
+}
+}
+//task 3
+// used Group leader Aidens student number
+ssc.checkpoint("/s4005768/checkpoint")
+// per-batch pair counts (reuse same cleaning as task 2)
+val batchPairs = cleanedPerLine.transform { rdd =>
+rdd.flatMap { ws =>
+// all ordered pairs, including self-pairs
+for (i <- ws.indices; j <- ws.indices) yield (s"${ws(i)} ${ws(j)}", 1L)
+}.reduceByKey(_ + _)
+}
+// state update function: add new counts to running total
+val updateCounts = (newVals: Seq[Long], running: Option[Long]) =>
+Some(running.getOrElse(0L) + newVals.sum)
+// accumulated pair counts over time
+val accumulated = batchPairs.updateStateByKey[Long](updateCounts)
+// UG rule: output every 3s (after we have any state)
+// counter for naming task3-001, task3-002
+var task3Counter = 0
+accumulated.foreachRDD { stateRDD =>
+if (!stateRDD.isEmpty()) { // only skip if we truly have no state yet
+task3Counter += 1
+stateRDD
+.map { case (pair, total) => s"$pair\t$total" } // "word1 word2<TAB>total"
+.saveAsTextFile(s"$outputDir/task3-${f"$task3Counter%03d"}")
+}
+}
+//requirements to run
+ssc.start()
+ssc.awaitTermination()
+}
+}
