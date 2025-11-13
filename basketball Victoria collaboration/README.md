@@ -108,3 +108,16 @@ https://www.youtube.com/watch?v=B-s71n0dHUk&ab_channel=VisualStudioCode
 git/ github in vs code
 https://www.youtube.com/watch?v=i_23KUAEtUM&t=300s&ab_channel=VisualStudioCode
 
+
+
+
+quick code run
+
+go to dashboard.py click the run button
+
+paste the follwing in terminal
+python -m streamlit run dashboard.py
+
+to close go back to the terminal
+ctrl c
+
