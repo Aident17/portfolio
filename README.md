@@ -1,6 +1,8 @@
 # portfolio
 Aiden Tsui's collection of projects
 
-
-extensions
-- vscode-pdf
+languages
+- python
+- pig
+- Apache Spark
+- 
