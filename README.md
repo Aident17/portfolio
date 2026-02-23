@@ -1,6 +1,6 @@
 Aiden Tsui's portfolio
 
-this is a collection of prpjects that i have been a part of
+this is a collection of projects that i have been a part of
 
 
 languages
